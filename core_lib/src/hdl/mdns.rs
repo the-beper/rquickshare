@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use mdns_sd::{AddrType, ServiceDaemon, ServiceInfo};
+use mdns_sd::{IfKind, ServiceDaemon, ServiceInfo};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::watch;
 use tokio::time::{interval_at, Instant};
@@ -50,8 +50,12 @@ impl MDnsServer {
     ) -> Result<Self, anyhow::Error> {
         let service_info = Self::build_service(endpoint_id, service_port, DeviceType::Laptop)?;
 
+        let daemon = ServiceDaemon::new()?;
+        // Advertise IPv4 addresses only.
+        daemon.disable_interface(IfKind::IPv6)?;
+
         Ok(Self {
-            daemon: ServiceDaemon::new()?,
+            daemon,
             service_info,
             ble_receiver,
             visibility_sender,
@@ -101,8 +105,9 @@ impl MDnsServer {
                     if visibility == Visibility::Visible || visibility == Visibility::Temporarily {
                         // Android can sometime not see the mDNS service if the service
                         // was running BEFORE Android started the Discovery phase for QuickShare.
-                        // So resend a broadcast if there's a android device sending.
-                        self.daemon.register_resend(self.service_info.get_fullname())?;
+                        // So announce again if there's a android device sending: registering
+                        // an already registered service sends the announcement at once.
+                        self.daemon.register(self.service_info.clone())?;
                     } else {
                         self.daemon.register(self.service_info.clone())?;
                     }
@@ -141,16 +146,33 @@ impl MDnsServer {
         let endpoint_info = gen_mdns_endpoint_info(device_type as u8, &device_name);
 
         let properties = [("n", endpoint_info)];
-        let si = ServiceInfo::new(
+        let mut si = ServiceInfo::new(
             "_FC9F5ED42C8A._tcp.local.",
             &name,
-            &name, // Needs to be ASCII?
+            &format!("{name}.local."), // mdns-sd rejects a host name without the suffix
             "",
             service_port,
             &properties[..],
         )?
-        .enable_addr_auto(AddrType::V4);
+        .enable_addr_auto();
+        // The instance name is random per start, so probing for a conflict would only delay the
+        // first announcement.
+        si.set_requires_probe(false);
 
         Ok(si)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn service_is_accepted_by_register() {
+        let si = MDnsServer::build_service([1, 2, 3, 4], 4000, DeviceType::Laptop).unwrap();
+        assert!(si.get_hostname().ends_with(".local."));
+        let daemon = ServiceDaemon::new().unwrap();
+        daemon.register(si).unwrap();
+        let _ = daemon.shutdown();
     }
 }

@@ -169,7 +169,11 @@ impl RQS {
             self.visibility_receiver.clone(),
         )?;
         let ctk = ctoken.clone();
-        tracker.spawn(async move { mdns.run(ctk).await });
+        tracker.spawn(async move {
+            if let Err(e) = mdns.run(ctk).await {
+                error!("MDnsServer stopped: {}", e);
+            }
+        });
 
         tracker.close();
 
