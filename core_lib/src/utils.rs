@@ -5,8 +5,8 @@ use anyhow::anyhow;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bytes::Bytes;
-use get_if_addrs::get_if_addrs;
 use hkdf::Hkdf;
+use if_addrs::get_if_addrs;
 use num_bigint::{BigUint, ToBigInt};
 use p256::elliptic_curve::rand_core::OsRng;
 use p256::{PublicKey, SecretKey};
@@ -202,6 +202,16 @@ pub fn get_download_dir() -> PathBuf {
     Path::new("/").to_path_buf()
 }
 
+/// The machine hostname, or "Unknown device" when it cannot be read.
+pub fn hostname() -> String {
+    let name = gethostname::gethostname().to_string_lossy().into_owned();
+    if name.is_empty() {
+        "Unknown device".to_owned()
+    } else {
+        name
+    }
+}
+
 pub fn is_not_self_ip(ip_address: &Ipv4Addr) -> bool {
     if let Ok(if_addrs) = get_if_addrs() {
         for if_addr in if_addrs {
@@ -230,6 +240,11 @@ pub fn create_text_preview(text: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_hostname_is_never_empty() {
+        assert!(!hostname().is_empty());
+    }
 
     #[test]
     fn test_gen_and_parse_mdns_info() {

@@ -2,6 +2,7 @@
 name = "rqs_lib"
 version = "0.11.5"
 edition = "2024"
+license = "GPL-3.0-only"
 authors = ["martichou"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,10 +23,11 @@ btleplug = { version = "0.11", optional = true }
 bytes = "1.10"
 directories = "6.0"
 futures = "0.3"
-get_if_addrs = "0.5"
+gethostname = "1.1"
 hex = "0.4"
 hkdf = "0.12"
 hmac = "0.12"
+if-addrs = "0.10"
 libaes = "0.7"
 log = "0.4"
 mdns-sd = { git = "https://github.com/Martichou/mdns-sd", branch = "unsolicited" }
@@ -37,7 +39,6 @@ prost = "0.13"
 rand = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 sha2 = "0.10"
-sys_metrics = { git = "https://github.com/Martichou/sys_metrics" }
 tokio = { version = "1.43", features = [
     "macros",
     "rt",
