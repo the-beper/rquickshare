@@ -43,8 +43,8 @@ use crate::sharing_nearby::{
     FileMetadata, IntroductionFrame, TextMetadata, file_metadata, paired_key_result_frame,
 };
 use crate::utils::{
-    DeviceType, RemoteDeviceInfo, create_text_preview, encode_point, gen_ecdsa_keypair, gen_random,
-    hkdf_extract_expand, stream_read_exact, to_four_digit_string,
+    DeviceType, RemoteDeviceInfo, create_text_preview, decode_point, encode_point,
+    gen_ecdsa_keypair, gen_random, hkdf_extract_expand, stream_read_exact, to_four_digit_string,
 };
 use crate::{DEVICE_NAME, location_nearby_connections, sharing_nearby};
 
@@ -1172,17 +1172,8 @@ impl OutboundRequest {
             .ok_or_else(|| anyhow!("Missing required fields"))?;
 
         let mut bytes = vec![0x04];
-        // Ensure no more than 32 bytes for the keys
-        if peer_p256_key.x.len() > 32 {
-            bytes.extend_from_slice(&peer_p256_key.x[peer_p256_key.x.len() - 32..]);
-        } else {
-            bytes.extend_from_slice(&peer_p256_key.x);
-        }
-        if peer_p256_key.y.len() > 32 {
-            bytes.extend_from_slice(&peer_p256_key.y[peer_p256_key.y.len() - 32..]);
-        } else {
-            bytes.extend_from_slice(&peer_p256_key.y);
-        }
+        bytes.extend(decode_point(&peer_p256_key.x));
+        bytes.extend(decode_point(&peer_p256_key.y));
 
         let encoded_point = EncodedPoint::from_bytes(bytes)?;
         let peer_key = PublicKey::from_encoded_point(&encoded_point).unwrap();
